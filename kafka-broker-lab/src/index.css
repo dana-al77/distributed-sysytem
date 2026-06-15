@@ -1,0 +1,22 @@
+body {
+  font-family: sans-serif;
+  padding: 20px;
+}
+
+.lane {
+  border: 2px solid green;
+  padding: 12px;
+  margin-top: 12px;
+}
+
+.message {
+  border: 1px solid #ccc;
+  margin: 6px;
+  padding: 6px;
+}
+
+.dlq {
+  border: 2px solid red;
+  padding: 12px;
+  margin-top: 20px;
+}
