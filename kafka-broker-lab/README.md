@@ -1,73 +1,146 @@
-# React + TypeScript + Vite
+# Kafka Message Bus Broker Controller
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Overview
 
-Currently, two official plugins are available:
+This project simulates a Kafka-style Message Broker with partition-based message routing, retry handling, and a Dead Letter Queue (DLQ).
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+The implementation demonstrates core distributed systems concepts including:
 
-## React Compiler
+* Topic partitioning
+* Sequential message processing
+* Offset tracking
+* Retry mechanisms
+* Poison message isolation
+* Dead Letter Queue (DLQ)
+* Message requeueing
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## Features
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Partition Routing
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+Messages are distributed between two partitions:
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+* Partition 0
+* Partition 1
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Partition selection is determined using:
+
+```ts
+const partition = message.key.length % 2;
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Offset Management
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Each produced message receives a unique sequential offset:
+
+```ts
+offset: this.currentOffset++
+```
+
+This simulates Kafka-style offset tracking.
+
+---
+
+### Sequential Processing
+
+Consumers process only the first pending message in a partition during each processing tick.
+
+This preserves FIFO-style behavior within a partition.
+
+---
+
+### Retry Handling
+
+Messages containing `:fail` simulate processing failures.
+
+Example:
+
+```txt
+CHARGE_BALANCE:fail
+```
+
+Failed messages increment their retry counter.
+
+---
+
+### Dead Letter Queue (DLQ)
+
+After 3 failed processing attempts, the message is:
+
+* Marked as poison
+* Removed from the partition
+* Moved to the Dead Letter Queue
+
+This prevents poison messages from blocking the processing pipeline.
+
+---
+
+### Requeue Support
+
+Messages stored in the DLQ can be requeued.
+
+The implementation:
+
+* Resets retry count
+* Restores pending status
+* Returns the message to its original partition
+
+---
+
+## Project Structure
+
+```txt
+src/
+├── services/
+│   └── KafkaBroker.ts
+├── components/
+│   ├── BrokerControls.tsx
+│   ├── PartitionLane.tsx
+│   └── DLQPanel.tsx
+├── types/
+│   └── KafkaTypes.ts
+└── App.tsx
+```
+
+---
+
+## Demonstration Flow
+
+### Successful Message
+
+1. Send Event
+2. Run Consumer Step
+3. Message is committed successfully
+
+### Poison Message
+
+1. Send Poison Config
+2. Run Consumer Step three times
+3. Message moves to DLQ
+
+### Recovery
+
+1. Click Requeue
+2. Message returns to partition
+3. Run Consumer Step
+4. Message is processed successfully
+
+---
+
+## Concepts Demonstrated
+
+* Distributed Messaging
+* Kafka Partitioning
+* Offset Tracking
+* Retry Strategies
+* Fault Isolation
+* Dead Letter Queues
+* Event-Driven Processing
+* Backend Message Brokers
+
+```
 ```
